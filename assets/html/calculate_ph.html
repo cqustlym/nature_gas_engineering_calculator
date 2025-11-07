@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>计算井底压力</title>
+    <link rel="stylesheet" href="/assets/css/calculate_pvt.css">
+    <link rel="stylesheet" href="/assets/handsontable/handsontable.css"/>
+</head>
+<body>
+<style>
+    .centered {
+        margin: 0 auto;
+        display: block;
+    }
+</style>
+<header>
+    <nav class="nav">
+        <a href="#" class="brand">气藏工程计算</a>
+        <ul class="nav-list">
+            <li><a href="/index.html">首页</a></li>
+            <!-- 带下拉的一级条目 -->
+            <li class="dropdown" tabindex="0">
+                <a href="#">压力计算</a>
+                <ul class="dropdown-menu">
+                    <li><a href="/calculate_pvt.html">天然气PVT计算</a></li>
+                    <li><a href="/calculate_pb.html">井底压力计算</a></li>
+                    <li><a href="/calculate_ph.html">井口压力计算</a></li>
+                </ul>
+            </li>
+<!--            <li><a href="#">关于</a></li>-->
+<!--            <li><a href="#">联系</a></li>-->
+        </ul>
+    </nav>
+</header>
+
+<main>
+    <div class="input-row" class="centered">
+        <label>请输入井号：</label>
+        <input id="wellNo" type="text" placeholder="天东9" value="天东9"/>
+        <button id="okBtn">确定</button>
+        <button id="calculate">计算</button>
+    </div>
+
+
+    <!-- handsontable 区域-->
+    <div id="wellInfo" class="handsontable-container"></div>
+    <div id="content" class="handsontable-container"></div>
+    <!-- 2. 核心库 -->
+    <script src="/assets/handsontable/handsontable.js"></script>
+    <!-- 3. 中文包（可选） -->
+    <script src="/assets/handsontable/languages/zh-CN.cs.js"></script>
+    <!-- 4. 业务代码 -->
+    <script src="/assets/handsontable/calculate_pvt.js"></script>
+</main>
+</body>
+</html>
