@@ -1,6 +1,3 @@
-use anyhow::Result;
-use sqlx::MySqlPool;
-
 //Dranchuk,Purris和Robinson法计算z
 //pc临界压力  tc临界温度  t井底温度  p压力
 pub fn z<Pc, Tc, T, P>(pc: Pc, tc: Tc, t: T, p: P) -> f64
@@ -67,27 +64,6 @@ where
             yy -= fh / dh;
         }
         0.06125 * ppr * tt * (-1.2 * (1.0 - tt).powi(2)).exp() / yy
-    }
-}
-
-pub async fn query_z(
-    pool: &MySqlPool,
-    wellname: &str,
-) -> Result<(Option<f64>, Option<f64>, Option<f64>)> {
-    let rec = sqlx::query!(
-        r#"
-        SELECT pc, tc, tb
-        FROM qcs.gaswell
-        WHERE wellname = ?
-        "#,
-        wellname
-    )
-    .fetch_optional(pool) // 0 或 1 行
-    .await?;
-
-    match rec {
-        Some(r) => Ok((r.pc, r.tc, r.tb)), // 数据库 NULL -> Rust None
-        None => Ok((None, None, None)),
     }
 }
 
@@ -257,188 +233,11 @@ pub fn pws(rg: f64, pc: f64, tc: f64, h: f64, tts: f64, tws: f64, pts: f64) -> f
     return pws;
 }
 
-//平均温度和平均压缩系数计算法计算井口压力(静气柱）
-pub fn pts(rg: f64, pc: f64, tc: f64, h: f64, tts: f64, tws: f64, pws: f64) -> f64 {
-    let mut pts = pws - pws * h / 12192.0; // 初始化pts值
-
-    for _ in 0..=50 {
-        let p = (pts + pws) / 2.0;
-        let t = (tts + tws) / 2.0;
-
-        let zz = z(pc, tc, t, p); // 调用z函数计算压缩系数
-
-        // 更新pts值
-        pts = pws / ((0.03415 * rg * h) / (zz * t)).exp();
-    }
-    pts
-}
-
-pub fn fy(
-    rg: f64,
-    pc: f64,
-    tc: f64,
-    tts: f64,
-    tws: f64,
-    p: f64,
-    yn2: f64,
-    yco2: f64,
-    yh2s: f64,
-    d1: f64,
-    q: f64,
-    ee: f64,
-) -> f64 {
-    let kn2 = yn2 * (0.00005 * rg + 0.000047) * 100.0;
-    let kco2 = yco2 * (0.000078 * rg + 0.00001) * 100.0;
-    let kh2s = yh2s * (0.000058 * rg - 0.000018) * 100.0;
-
-    let t = (tts + tws) / 2.0;
-    let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * t / 5.0).powf(1.5))
-        / (209.0 + 19.0 * 28.97 * rg + 9.0 * t / 5.0)
-        + kn2
-        + kco2
-        + kh2s;
-    let x = 3.5 + 986.0 / (9.0 * t / 5.0) + 0.01 * 28.97 * rg;
-    let y = 2.4 - 0.2 * x;
-
-    let zz = z(pc, tc, t, p);
-    let lluopr = 0.0014926 * (144.9275 * p) * (28.97 * rg) / (zz * (9.0 * t / 5.0)); // lluopr----密度
-    let zhandu = k * (lluopr.powf(y)).exp(); // zhandu----粘度
-
-    let re = 179.39789 * q * rg / (d1 * zhandu); // re----雷诺数
-    1.0 / ((1.14 - 2.0 * ((ee / d1 + 21.25 / re.powf(0.9)).log10() / 10.0f64.log10().log10()))
-        .powf(2.0))
-}
-
 //计算油管采气时的井底流动压力Pwf(利用平均温度和平均压缩系数)
 //yn2:N2摩尔分数  yco2:CO2摩尔分数  yh2s:H2S摩尔分数  d1:油管直径，单位：m  ee:粗糙系数
 //d1、h1---第1段油管直径和下入长度
 //d2、h2---第2段油管直径和下入长度
 //d3、h3---产层直径和油管底部至中部井深的长度
-pub fn pwf<PC, TC, YN2, YCO2, YH2S, D1, D2, D3, H1, H2, H3, H, TTS, TWS, Q, PTF, EE>(
-    rg: f64, // 已经确定是 f64，就不泛型了
-    pc: PC,
-    tc: TC,
-    yn2: YN2,
-    yco2: YCO2,
-    yh2s: YH2S,
-    d1: D1,
-    d2: D2,
-    d3: D3,
-    h1: H1,
-    h2: H2,
-    h3: H3,
-    h: H,
-    tts: TTS,
-    tws: TWS,
-    q: Q,
-    ptf: PTF,
-    ee: EE,
-) -> f64
-where
-    PC: Into<f64>,
-    TC: Into<f64>,
-    YN2: Into<f64>,
-    YCO2: Into<f64>,
-    YH2S: Into<f64>,
-    D1: Into<f64>,
-    D2: Into<f64>,
-    D3: Into<f64>,
-    H1: Into<f64>,
-    H2: Into<f64>,
-    H3: Into<f64>,
-    H: Into<f64>,
-    TTS: Into<f64>,
-    TWS: Into<f64>,
-    Q: Into<f64>,
-    PTF: Into<f64>,
-    EE: Into<f64>,
-{
-    // 统一转成 f64
-    let pc = pc.into();
-    let tc = tc.into();
-    let yn2 = yn2.into();
-    let yco2 = yco2.into();
-    let yh2s = yh2s.into();
-    let d1 = d1.into();
-    let d2 = d2.into();
-    let d3 = d3.into();
-    let h1 = h1.into();
-    let h2 = h2.into();
-    let h3 = h3.into();
-    let h = h.into();
-    let tts = tts.into();
-    let tws = tws.into();
-    let q = q.into();
-    let ptf = ptf.into();
-    let ee = ee.into();
-
-    let tj = 0.8742 * q + 20.22 + 273.15;
-    let t_avg = (tts + tws) / 2.0;
-
-    // 第1段
-    let t1 = h1 * (tws - tj) / h + tj;
-    let pwf1 = if d1 > 0.0 {
-        let mut pwf1 = ptf + ptf * h1 / 12192.0;
-        for _ in 1..=15 {
-            let p = (pwf1 + ptf) / 2.0;
-            let zz = z(pc, tc, t_avg, p);
-            let ffy = fy(rg, pc, tc, tts, tws, p, yn2, yco2, yh2s, d1, q, ee);
-            let s = 0.03415 * rg * h1 / (t_avg * zz);
-            pwf1 = (pwf1.powi(2) * (2.0_f64).powf(2.0 * s)
-                + 1.324e-10 * ffy * (q * t_avg * zz).powi(2) * ((2.0_f64).powf(2.0 * s) - 1.0)
-                    / d1.powi(5))
-            .sqrt();
-        }
-        pwf1
-    } else {
-        ptf
-    };
-
-    // 第2段
-    let t2 = (h1 + h2) * (tws - tj) / h + tj;
-    let pwf2 = if d2 > 0.0 {
-        let mut pwf2 = pwf1 + pwf1 * h2 / 12192.0;
-        for _ in 1..=15 {
-            let p = (pwf1 + pwf2) / 2.0;
-            let zz = z(pc, tc, (t1 + t2) / 2.0, p);
-            let ffy = fy(rg, pc, tc, tts, tws, p, yn2, yco2, yh2s, d2, q, ee);
-            let s = 0.03415 * rg * h2 / ((t1 + t2) / 2.0 * zz);
-            pwf2 = (pwf1.powi(2) * (2.0_f64).powf(2.0 * s)
-                + 1.324e-10
-                    * ffy
-                    * (q * (t1 + t2) / 2.0 * zz).powi(2)
-                    * ((2.0_f64).powf(2.0 * s) - 1.0)
-                    / d2.powi(5))
-            .sqrt();
-        }
-        pwf2
-    } else {
-        pwf1
-    };
-
-    // 第3段
-    let _t3 = (h1 + h2 + h3) * (tws - tj) / h + tj;
-    let pwf3 = if d3 > 0.0 {
-        let mut pwf3 = pwf2 + pwf2 * h3 / 12192.0;
-        for _ in 1..=15 {
-            let p = (pwf2 + pwf3) / 2.0;
-            let zz = z(pc, tc, (t2 + tws) / 2.0, p);
-            let ffy = fy(rg, pc, tc, tts, tws, p, yn2, yco2, yh2s, d3, q, ee);
-            let s = 0.03415 * rg * h3 / ((t2 + tws) / 2.0 * zz);
-            pwf3 = (pwf2.powi(2) * (2.0_f64).powf(2.0 * s)
-                + 1.324e-10
-                    * ffy
-                    * (q * (t2 + tws) / 2.0 * zz).powi(2)
-                    * ((2.0_f64).powf(2.0 * s) - 1.0)
-                    / d3.powi(5))
-            .sqrt();
-        }
-        pwf3
-    } else {
-        pwf2
-    };
-    pwf3
-}
 
 ///平均温度和平均压缩系数计算法计算井口压力(静气柱）well pressure(bottom shutdown)
 /// 静气柱井底压力（平均温度/平均压缩系数法）
