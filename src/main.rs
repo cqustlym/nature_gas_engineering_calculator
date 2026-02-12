@@ -1,17 +1,65 @@
 use axum::{
-    Router,
     http::StatusCode,
-    response::{IntoResponse, Json, Redirect}, // 导入 IntoResponse
+    response::{IntoResponse, Json, Redirect},
     routing::{get, post},
+    Router,
 };
 use dotenv::dotenv;
 use once_cell::sync::Lazy;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sqlx::{MySqlPool, mysql::MySqlPoolOptions};
+use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
 use std::env;
 use tower_http::services::ServeDir;
-use tracing::{error, info};
-mod pressure; // 引入 pressure 模块
+mod pressure;
+
+// -------- Batch 请求/响应结构体 --------
+#[derive(Deserialize)]
+struct CalculateBatchPVTReq {
+    pressures: Vec<f64>,
+    pc: f64,
+    tc: f64,
+    t: f64,
+    rg: f64,
+    n2: f64,
+    co2: f64,
+    h2s: f64,
+}
+
+#[derive(Serialize)]
+struct BatchPVTResp {
+    z: f64,
+    p_over_z: f64,
+    bg: f64,
+    niandu: f64,
+    cg: f64,
+    density: f64,
+}
+
+#[derive(Deserialize)]
+struct CalculateBatchPbReq {
+    pts: Vec<f64>,
+    well_no: Option<String>,
+    rg: f64,
+    pc: f64,
+    tc: f64,
+    h: f64,
+    tts: f64,
+    tws: f64,
+    n2: f64,
+    co2: f64,
+    h2s: f64,
+}
+
+#[derive(Serialize)]
+struct BatchPbResp {
+    pwbs: f64,
+    z: f64,
+    p_over_z: f64,
+    bg: f64,
+    niandu: f64,
+    cg: f64,
+}
 
 // ---------------- 全局连接池 ----------------
 static POOL: Lazy<MySqlPool> = Lazy::new(|| {
@@ -77,10 +125,10 @@ async fn get_well_data_handler(
     let well_data: Vec<WellData> = rows
         .into_iter()
         .map(|row| WellData {
-            wellname: row.wellname.clone().expect("REASON"), // 直接克隆 String
-            md: row.md.unwrap_or_default(),                  // 中部井深
-            th: row.th.unwrap_or_default(),                  // 井口温度
-            tb: row.tb.unwrap_or_default(),                  // 井底温度
+            wellname: row.wellname,         // 直接使用 String
+            md: row.md.unwrap_or_default(), // 中部井深
+            th: row.th.unwrap_or_default(), // 井口温度
+            tb: row.tb.unwrap_or_default(), // 井底温度
             rg: row.rg.unwrap_or_default(),
             pc: row.pc.unwrap_or_default(),
             tc: row.tc.unwrap_or_default(),
@@ -119,20 +167,14 @@ struct CalculateZReq {
 
 // ---------------- 计算 Z 值接口 ----------------
 async fn calculate_z_handler(Json(req): Json<CalculateZReq>) -> Result<Json<Vec<f64>>, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pressures = req.pressures;
     let pc = req.pc;
     let tc = req.tc;
     let t = req.t;
 
     let z_values: Vec<f64> = pressures
-        .iter()
-        .map(|&p| {
-            let result = pressure::z(pc, tc, t, p);
-            info!("Calculated z value for pressure {}: {}", p, result);
-            result
-        })
+        .par_iter()
+        .map(|&p| pressure::z(pc, tc, t, p))
         .collect();
 
     Ok(Json(z_values))
@@ -151,15 +193,13 @@ struct CalculateBgReq {
 async fn calculate_bg_handler(
     Json(req): Json<CalculateBgReq>,
 ) -> Result<Json<Vec<f64>>, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pressures = req.pressures;
     let pc = req.pc;
     let tc = req.tc;
     let t = req.t;
 
     let bg_values: Vec<f64> = pressures
-        .iter()
+        .par_iter()
         .map(|&p| pressure::bg(pc, tc, t, p))
         .collect();
 
@@ -179,15 +219,13 @@ struct CalculateCgReq {
 async fn calculate_cg_handler(
     Json(req): Json<CalculateCgReq>,
 ) -> Result<Json<Vec<f64>>, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pressures = req.pressures;
     let pc = req.pc;
     let tc = req.tc;
     let t = req.t;
 
     let cg_values: Vec<f64> = pressures
-        .iter()
+        .par_iter()
         .map(|&p| pressure::cg(pc, tc, t, p))
         .collect();
 
@@ -208,8 +246,6 @@ struct CalculateDensityReq {
 async fn calculate_density_handler(
     Json(req): Json<CalculateDensityReq>,
 ) -> Result<Json<Vec<f64>>, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pressures = req.pressures;
     let pc = req.pc;
     let tc = req.tc;
@@ -217,7 +253,7 @@ async fn calculate_density_handler(
     let rg = req.rg;
 
     let density_values: Vec<f64> = pressures
-        .iter()
+        .par_iter()
         .map(|&p| pressure::density(rg, pc, tc, t, p))
         .collect();
 
@@ -241,8 +277,6 @@ struct CalculateNianduReq {
 async fn calculate_niandu_handler(
     Json(req): Json<CalculateNianduReq>,
 ) -> Result<Json<Vec<f64>>, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pressures = req.pressures;
     let pc = req.pc;
     let tc = req.tc;
@@ -253,7 +287,7 @@ async fn calculate_niandu_handler(
     let h2s = req.h2s;
 
     let niandu_values: Vec<f64> = pressures
-        .iter()
+        .par_iter()
         .map(|&p| pressure::niandu(rg, pc, tc, t, p, n2, co2, h2s))
         .collect();
 
@@ -277,11 +311,121 @@ struct CalculatePwbsReq {
 async fn calculate_pwbs_handler(
     Json(req): Json<CalculatePwbsReq>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    info!("Received request: {:?}", req);
-
     let pwbs_value = pressure::pwbs(req.rg, req.pc, req.tc, req.h, req.tts, req.tws, req.pts);
 
     Ok(Json(vec![pwbs_value]))
+}
+
+// 批量 PVT 计算：一次返回每个点的 z, p_over_z, bg, niandu, cg, density
+async fn calculate_batch_pvt_handler(
+    Json(req): Json<CalculateBatchPVTReq>,
+) -> Result<Json<Vec<BatchPVTResp>>, StatusCode> {
+    // CPU密集型工作放到 blocking 线程
+    let pressures = req.pressures.clone();
+    let pc = req.pc;
+    let tc = req.tc;
+    let t = req.t;
+    let rg = req.rg;
+    let n2 = req.n2;
+    let co2 = req.co2;
+    let h2s = req.h2s;
+
+    let result = tokio::task::spawn_blocking(move || {
+        let mut out: Vec<BatchPVTResp> = Vec::with_capacity(pressures.len());
+        for p in pressures {
+            let z = pressure::z(pc, tc, t, p);
+            let p_over_z = if z != 0.0 { p / z } else { 0.0 };
+            let bg = 0.0003447 * z * t / p;
+
+            // density (approx) reuse z to avoid recomputing inside density()
+            let density = 3.4844 * p * rg / (z * t);
+
+            // niandu inline (reuse density)
+            let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
+            let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
+            let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
+            let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * t / 5.0).powf(1.5))
+                / (209.0 + 19.0 * 28.97 * rg + 9.0 * t / 5.0)
+                + kn2
+                + kco2
+                + kh2s;
+            let x = 3.5 + 986.0 / (9.0 * t / 5.0) + 0.01 * 28.97 * rg;
+            let y = 2.4 - 0.2 * x;
+            let niandu = k * (x * density.powf(y)).exp();
+
+            // cg use existing function (may recompute z internally)
+            let cg = pressure::cg(pc, tc, t, p);
+
+            out.push(BatchPVTResp {
+                z,
+                p_over_z,
+                bg,
+                niandu,
+                cg,
+                density,
+            });
+        }
+        out
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(result))
+}
+
+// 批量 PB 计算: 接收多个 pts，返回每个点的 pwbs 及其对应的参数
+async fn calculate_batch_pb_handler(
+    Json(req): Json<CalculateBatchPbReq>,
+) -> Result<Json<Vec<BatchPbResp>>, StatusCode> {
+    let pts = req.pts.clone();
+    let rg = req.rg;
+    let pc = req.pc;
+    let tc = req.tc;
+    let h = req.h;
+    let tts = req.tts;
+    let tws = req.tws;
+    let n2 = req.n2;
+    let co2 = req.co2;
+    let h2s = req.h2s;
+
+    let result = tokio::task::spawn_blocking(move || {
+        let mut out: Vec<BatchPbResp> = Vec::with_capacity(pts.len());
+        for pts in pts {
+            let pwbs = pressure::pws(rg, pc, tc, h, tts, tws, pts);
+            let z = pressure::z(pc, tc, tws, pwbs);
+            let p_over_z = if z != 0.0 { pwbs / z } else { 0.0 };
+            let bg = 0.0003447 * z * tws / pwbs;
+
+            let density = 3.4844 * pwbs * rg / (z * tws);
+            let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
+            let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
+            let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
+            let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * tws / 5.0).powf(1.5))
+                / (209.0 + 19.0 * 28.97 * rg + 9.0 * tws / 5.0)
+                + kn2
+                + kco2
+                + kh2s;
+            let x = 3.5 + 986.0 / (9.0 * tws / 5.0) + 0.01 * 28.97 * rg;
+            let y = 2.4 - 0.2 * x;
+            let niandu = k * (x * density.powf(y)).exp();
+
+            let cg = pressure::cg(pc, tc, tws, pwbs);
+
+            out.push(BatchPbResp {
+                pwbs,
+                z,
+                p_over_z,
+                bg,
+                niandu,
+                cg,
+            });
+        }
+        out
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(result))
 }
 
 // ---------------- 启动入口 ----------------
@@ -309,6 +453,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/calculateNiandu", post(calculate_niandu_handler))
         // 计算 井底静压 接口
         .route("/api/calculatePwbs", post(calculate_pwbs_handler))
+        // 批量 PVT 计算接口
+        .route("/api/calculateBatchPVT", post(calculate_batch_pvt_handler))
+        // 批量 PB 计算接口
+        .route("/api/calculateBatchPb", post(calculate_batch_pb_handler))
         // 静态文件
         .nest_service("/assets", ServeDir::new("assets"))
         .nest_service("/login.html", ServeDir::new("assets/html/login.html"))
@@ -340,18 +488,5 @@ async fn query_db(_pool: &MySqlPool) -> Result<(), sqlx::Error> {
     for row in rows {
         println!("{:#?}", row);
     }
-    Ok(())
-}
-
-// 用户注册
-async fn register(pool: &MySqlPool, username: &str, password: &str) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "INSERT INTO users (username, password) VALUES (?, ?)",
-        username,
-        password
-    )
-    .execute(pool)
-    .await?;
-    println!("{username} 注册成功");
     Ok(())
 }
