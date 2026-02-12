@@ -22,6 +22,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 once_cell = "1.21.3"
 tracing = "0.1.41"
 rayon = "1.8"
+num_cpus = "1.0"
 
 [profile.release]
 opt-level = 3

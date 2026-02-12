@@ -121,3 +121,17 @@ h3 {
 #content {
     margin: 10px auto;       /* 水平居中 */
 }
+
+/* handsontable 容器：允许纵向滚动并自适应高度 */
+.handsontable-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 60vh; /* 根据屏幕高度限制，可调整 */
+    overflow: auto;
+}
+
+/* 允许单元格内自动换行，避免内容被截断 */
+.handsontable-container .htCore td {
+    white-space: normal !important;
+    word-break: break-word;
+}

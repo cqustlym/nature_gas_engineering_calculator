@@ -331,41 +331,42 @@ async fn calculate_batch_pvt_handler(
     let h2s = req.h2s;
 
     let result = tokio::task::spawn_blocking(move || {
-        let mut out: Vec<BatchPVTResp> = Vec::with_capacity(pressures.len());
-        for p in pressures {
-            let z = pressure::z(pc, tc, t, p);
-            let p_over_z = if z != 0.0 { p / z } else { 0.0 };
-            let bg = 0.0003447 * z * t / p;
+        pressures
+            .into_par_iter()
+            .map(|p| {
+                let z = pressure::z(pc, tc, t, p);
+                let p_over_z = if z != 0.0 { p / z } else { 0.0 };
+                let bg = 0.0003447 * z * t / p;
 
-            // density (approx) reuse z to avoid recomputing inside density()
-            let density = 3.4844 * p * rg / (z * t);
+                // density (approx) reuse z to avoid recomputing inside density()
+                let density = 3.4844 * p * rg / (z * t);
 
-            // niandu inline (reuse density)
-            let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
-            let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
-            let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
-            let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * t / 5.0).powf(1.5))
-                / (209.0 + 19.0 * 28.97 * rg + 9.0 * t / 5.0)
-                + kn2
-                + kco2
-                + kh2s;
-            let x = 3.5 + 986.0 / (9.0 * t / 5.0) + 0.01 * 28.97 * rg;
-            let y = 2.4 - 0.2 * x;
-            let niandu = k * (x * density.powf(y)).exp();
+                // niandu inline (reuse density)
+                let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
+                let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
+                let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
+                let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * t / 5.0).powf(1.5))
+                    / (209.0 + 19.0 * 28.97 * rg + 9.0 * t / 5.0)
+                    + kn2
+                    + kco2
+                    + kh2s;
+                let x = 3.5 + 986.0 / (9.0 * t / 5.0) + 0.01 * 28.97 * rg;
+                let y = 2.4 - 0.2 * x;
+                let niandu = k * (x * density.powf(y)).exp();
 
-            // cg use existing function (may recompute z internally)
-            let cg = pressure::cg(pc, tc, t, p);
+                // cg use existing function (may recompute z internally)
+                let cg = pressure::cg(pc, tc, t, p);
 
-            out.push(BatchPVTResp {
-                z,
-                p_over_z,
-                bg,
-                niandu,
-                cg,
-                density,
-            });
-        }
-        out
+                BatchPVTResp {
+                    z,
+                    p_over_z,
+                    bg,
+                    niandu,
+                    cg,
+                    density,
+                }
+            })
+            .collect()
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -389,38 +390,38 @@ async fn calculate_batch_pb_handler(
     let h2s = req.h2s;
 
     let result = tokio::task::spawn_blocking(move || {
-        let mut out: Vec<BatchPbResp> = Vec::with_capacity(pts.len());
-        for pts in pts {
-            let pwbs = pressure::pws(rg, pc, tc, h, tts, tws, pts);
-            let z = pressure::z(pc, tc, tws, pwbs);
-            let p_over_z = if z != 0.0 { pwbs / z } else { 0.0 };
-            let bg = 0.0003447 * z * tws / pwbs;
+        pts.into_par_iter()
+            .map(|pt| {
+                let pwbs = pressure::pws(rg, pc, tc, h, tts, tws, pt);
+                let z = pressure::z(pc, tc, tws, pwbs);
+                let p_over_z = if z != 0.0 { pwbs / z } else { 0.0 };
+                let bg = 0.0003447 * z * tws / pwbs;
 
-            let density = 3.4844 * pwbs * rg / (z * tws);
-            let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
-            let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
-            let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
-            let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * tws / 5.0).powf(1.5))
-                / (209.0 + 19.0 * 28.97 * rg + 9.0 * tws / 5.0)
-                + kn2
-                + kco2
-                + kh2s;
-            let x = 3.5 + 986.0 / (9.0 * tws / 5.0) + 0.01 * 28.97 * rg;
-            let y = 2.4 - 0.2 * x;
-            let niandu = k * (x * density.powf(y)).exp();
+                let density = 3.4844 * pwbs * rg / (z * tws);
+                let kn2 = n2 * (0.00005 * rg + 0.000047) * 100.0;
+                let kco2 = co2 * (0.000078 * rg + 0.00001) * 100.0;
+                let kh2s = h2s * (0.000058 * rg - 0.000018) * 100.0;
+                let k = (0.0001 * (9.4 + 0.02 * 28.97 * rg) * (9.0 * tws / 5.0).powf(1.5))
+                    / (209.0 + 19.0 * 28.97 * rg + 9.0 * tws / 5.0)
+                    + kn2
+                    + kco2
+                    + kh2s;
+                let x = 3.5 + 986.0 / (9.0 * tws / 5.0) + 0.01 * 28.97 * rg;
+                let y = 2.4 - 0.2 * x;
+                let niandu = k * (x * density.powf(y)).exp();
 
-            let cg = pressure::cg(pc, tc, tws, pwbs);
+                let cg = pressure::cg(pc, tc, tws, pwbs);
 
-            out.push(BatchPbResp {
-                pwbs,
-                z,
-                p_over_z,
-                bg,
-                niandu,
-                cg,
-            });
-        }
-        out
+                BatchPbResp {
+                    pwbs,
+                    z,
+                    p_over_z,
+                    bg,
+                    niandu,
+                    cg,
+                }
+            })
+            .collect()
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

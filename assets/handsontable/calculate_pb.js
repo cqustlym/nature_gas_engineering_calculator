@@ -102,7 +102,7 @@ document.getElementById('calculate').addEventListener('click', () => {
     }
 
     // 获取 content 表中的第一列数据（井口压力）
-    const pressures = content.getData().map(row => row[0]);
+    const pressuresRaw = content.getData().map(row => row[0]);
 
     // 获取 wellInfo 表中的相关数据
     const wellInfoData = wellInfo.getData()[0];
@@ -116,174 +116,55 @@ document.getElementById('calculate').addEventListener('click', () => {
     const md = wellInfoData[1]; // 中部井深
     const th = wellInfoData[2]; // 井口温度
 
-    const calculateAndUpdate = async (index, pressure) => {
-        // 准备发送到后端的数据
-        const requestData = {
-            well_no: wellInfoData[0],
-            rg: rg,
-            pc: pc,
-            tc: tc,
-            h: md, // 中部井深
-            tts: th, // 井口温度
-            tws: t, // 井底温度
-            pts: parseFloat(pressure), // 井口压力
-        };
+    const ptsArr = pressuresRaw
+        .map(v => (v === null || v === undefined || v === '' ? null : parseFloat(v)))
+        .map(v => (Number.isNaN(v) ? null : v));
 
-        console.log('Request data:', requestData); // 调试信息
+    const requests = ptsArr.map((p, i) => ({ p, i })).filter(x => x.p !== null);
+    if (requests.length === 0) {
+        alert('没有有效的井口压力输入。');
+        return;
+    }
 
-        // 计算 Pwbs
-        try {
-            const responsePwbs = await fetch('/api/calculatePwbs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!responsePwbs.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            const pwbsValue = await responsePwbs.json();
-
-            // 更新 content 表中的第二列（井底压力）
-            content.setDataAtCell(index, 1, pwbsValue);
-
-            // 获取 Z 值
-            let zValue;
-            if (pwbsValue && pwbsValue.z) {
-                zValue = pwbsValue.z;
-            } else {
-                // 如果 Pwbs 返回的值中没有 Z 值，则单独计算 Z 值
-                const responseZ = await fetch('/api/calculateZ', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pressures: [parseFloat(pwbsValue)], // 使用井底压力
-                        pc: pc,
-                        tc: tc,
-                        t: t,
-                    })
-                });
-
-                if (!responseZ.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const zValues = await responseZ.json();
-                zValue = zValues[0];
-            }
-
-            // 更新 content 表中的第三列（Z）
-            content.setDataAtCell(index, 2, zValue);
-
-            // 计算 P/Z 并更新第四列
-            const pOverZ = parseFloat(pwbsValue) / zValue; // 使用井底压力
-            content.setDataAtCell(index, 3, pOverZ);
-
-            // 计算 Bg
-            try {
-                const responseBg = await fetch('/api/calculateBg', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pressures: [parseFloat(pwbsValue)], // 使用井底压力
-                        pc: pc,
-                        tc: tc,
-                        t: t,
-                    })
-                });
-
-                if (!responseBg.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const bgValues = await responseBg.json();
-                const bgValue = bgValues[0];
-
-                // 更新 content 表中的第五列（1/Bg）
-                content.setDataAtCell(index, 4, 1 / bgValue);
-            } catch (error) {
-                console.error('Error calculating Bg values:', error);
-                alert('计算 Bg 值时出错，请检查输入或联系管理员。');
-            }
-
-            // 计算 粘度 μ
-            try {
-                const responseNiandu = await fetch('/api/calculateNiandu', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pressures: [parseFloat(pwbsValue)], // 使用井底压力
-                        pc: pc,
-                        tc: tc,
-                        t: t,
-                        rg: rg,
-                        n2: n2,
-                        co2: co2,
-                        h2s: h2s,
-                    })
-                });
-
-                if (!responseNiandu.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const nianduValues = await responseNiandu.json();
-                const nianduValue = nianduValues[0];
-
-                // 更新 content 表中的第六列（粘度）
-                content.setDataAtCell(index, 5, nianduValue);
-            } catch (error) {
-                console.error('Error calculating Niandu values:', error);
-                alert('计算 粘度 值时出错，请检查输入或联系管理员。');
-            }
-
-            // 计算 Cg
-            try {
-                const responseCg = await fetch('/api/calculateCg', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pressures: [parseFloat(pwbsValue)], // 使用井底压力
-                        pc: pc,
-                        tc: tc,
-                        t: t,
-                    })
-                });
-
-                if (!responseCg.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const cgValues = await responseCg.json();
-                const cgValue = cgValues[0];
-
-                // 更新 content 表中的第七列（Cg）
-                content.setDataAtCell(index, 6, cgValue);
-            } catch (error) {
-                console.error('Error calculating Cg values:', error);
-                alert('计算 Cg 值时出错，请检查输入或联系管理员。');
-            }
-        } catch (error) {
-            console.error('Error calculating Pwbs value:', error);
-            alert('计算 Pwbs 值时出错，请检查输入或联系管理员。');
-        }
+    const batchReq = {
+        pts: requests.map(x => x.p),
+        well_no: wellInfoData[0],
+        rg: rg,
+        pc: pc,
+        tc: tc,
+        h: md,
+        tts: th,
+        tws: t,
+        n2: n2,
+        co2: co2,
+        h2s: h2s
     };
 
-    // 逐行处理 pressures 数据
-    pressures.forEach((pressure, index) => {
-        if (pressure !== null && pressure !== undefined && pressure !== '') {
-            calculateAndUpdate(index, pressure);
-        }
-    });
+    fetch('/api/calculateBatchPb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batchReq)
+    })
+        .then(resp => {
+            if (!resp.ok) throw new Error('Network response not ok');
+            return resp.json();
+        })
+        .then(results => {
+            // results 对应 requests 的顺序
+            const newData = pressuresRaw.map((orig, idx) => {
+                if (orig === null || orig === undefined || orig === '') return [orig, null, null, null, null, null, null];
+                const foundIndex = requests.findIndex(r => r.i === idx);
+                if (foundIndex === -1) return [orig, null, null, null, null, null, null];
+                const r = results[foundIndex];
+                // 注意 UI 需要第5列是 1/Bg
+                const invBg = r.bg !== 0 ? 1 / r.bg : null;
+                return [parseFloat(orig), r.pwbs, r.z, r.p_over_z, invBg, r.niandu, r.cg];
+            });
+
+            content.loadData(newData);
+        })
+        .catch(err => {
+            console.error('Batch PB calculation error:', err);
+            alert('批量计算出错，请检查输入或联系管理员。');
+        });
 });
