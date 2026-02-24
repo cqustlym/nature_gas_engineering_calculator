@@ -130,10 +130,10 @@ document.getElementById('calculate').addEventListener('click', () => {
     }
 
     // 获取当前井信息数据（包括用户编辑后的参数）
-    const currentWellData = wellInfo.getData()[0];
+    const currentWellData = wellInfo.getSourceData()[0];
 
     // 获取 content 表中的第一列数据
-    const pressuresRaw = content.getData().map(row => row[0]);
+    const pressuresRaw = content.getSourceData().map(row => row[0]);
     const pressures = pressuresRaw
         .map(v => (v === null || v === undefined || v === '' ? null : parseFloat(v)))
         .map(v => (Number.isNaN(v) || !isFinite(v) ? null : v));
@@ -148,8 +148,6 @@ document.getElementById('calculate').addEventListener('click', () => {
     const n2 = parseFloat(wellInfoData[5]); // N2 的值
     const co2 = parseFloat(wellInfoData[6]); // CO2 的值
     const h2s = parseFloat(wellInfoData[7]); // H2S 的值
-
-    console.log('Parsed parameters:', { pc, tc, t, rg, n2, co2, h2s }); // 调试信息
 
     // 验证参数是否为有效数字
     if (isNaN(pc) || !isFinite(pc) || isNaN(tc) || !isFinite(tc) || isNaN(t) || !isFinite(t) || isNaN(rg) || !isFinite(rg) || isNaN(n2) || !isFinite(n2) || isNaN(co2) || !isFinite(co2) || isNaN(h2s) || !isFinite(h2s)) {
@@ -176,8 +174,6 @@ document.getElementById('calculate').addEventListener('click', () => {
         console.error('没有有效的压力输入。');
         throw new Error('No valid pressures');
     }
-
-    console.log('Validation passed');
 
     const batchReq = {
         pressures: requests.map(x => x.p),
