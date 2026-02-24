@@ -4,34 +4,18 @@ use axum::{
     Router,
 };
 use dotenv::dotenv;
-use once_cell::sync::Lazy;
-use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
-use std::env;
 use tower_http::services::ServeDir;
 
+mod db;
 mod handlers;
 mod models;
 mod pressure;
-
-// ============ 全局连接池 ============
-pub static POOL: Lazy<MySqlPool> = Lazy::new(|| {
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            let url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-            MySqlPoolOptions::new()
-                .max_connections(500)
-                .connect(&url)
-                .await
-                .expect("connect db error")
-        })
-    })
-});
 
 // ============ 应用启动 ============
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    let _ = &*POOL; // 初始化全局连接池
+    db::init_pool().await.expect("Failed to init pool");
 
     let app = Router::new()
         // 根路径重定向到登录页
