@@ -46,6 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/api/calculateBatchPb",
             post(handlers::calculate_batch_pb_handler),
         )
+        .route(
+            "/api/calculateBatchPh",
+            post(handlers::calculate_batch_ph_handler),
+        )
         // 静态文件
         .nest_service("/assets", ServeDir::new("assets"))
         .nest_service("/login.html", ServeDir::new("assets/html/login.html"))

@@ -135,7 +135,7 @@ pub async fn calculate_batch_pvt_handler(
     let co2 = req.co2;
     let h2s = req.h2s;
 
-    let result = tokio::task::spawn_blocking(move || {
+    let result: Vec<BatchPVTResp> = tokio::task::spawn_blocking(move || {
         pressures
             .into_par_iter()
             .map(|p| {
@@ -191,6 +191,49 @@ pub async fn calculate_batch_pb_handler(
 
                 BatchPbResp {
                     pwbs,
+                    z,
+                    p_over_z,
+                    bg,
+                    niandu,
+                    cg,
+                }
+            })
+            .collect()
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(result))
+}
+
+// ============ 井口压力计算 ============
+pub async fn calculate_batch_ph_handler(
+    Json(req): Json<CalculateBatchPhReq>,
+) -> Result<Json<Vec<BatchPhResp>>, StatusCode> {
+    let pwbs = req.pwbs.clone();
+    let rg = req.rg;
+    let pc = req.pc;
+    let tc = req.tc;
+    let h = req.h;
+    let tts = req.tts;
+    let tws = req.tws;
+    let n2 = req.n2;
+    let co2 = req.co2;
+    let h2s = req.h2s;
+
+    let result = tokio::task::spawn_blocking(move || {
+        pwbs.into_par_iter()
+            .map(|pwbs| {
+                let ph = pressure::ph(rg, pc, tc, h, tts, tws, pwbs);
+                let z = pressure::z(pc, tc, tts, ph);
+                let p_over_z = if z != 0.0 { ph / z } else { 0.0 };
+                let bg = 0.0003447 * z * tts / ph;
+                let density = 3.4844 * ph * rg / (z * tts);
+                let niandu = calculate_viscosity(rg, tts, density, n2, co2, h2s);
+                let cg = pressure::cg(pc, tc, tts, ph);
+
+                BatchPhResp {
+                    ph,
                     z,
                     p_over_z,
                     bg,

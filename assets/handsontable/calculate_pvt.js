@@ -4,7 +4,7 @@ let content = null;
 
 // 事件监听器
 document.getElementById('okBtn').addEventListener('click', () => {
-    console.log('Button clicked'); // 调试信息
+
 
     // 如果已经存在旧的表格实例，先销毁它们
     if (wellInfo) {
@@ -24,7 +24,7 @@ document.getElementById('okBtn').addEventListener('click', () => {
         return;
     }
 
-    console.log('Fetching well data for wellNo:', wellNo); // 调试信息
+
 
     // 发送 AJAX 请求
     fetch(`/api/getWellData?wellNo=${encodeURIComponent(wellNo)}`, {
@@ -41,8 +41,6 @@ document.getElementById('okBtn').addEventListener('click', () => {
             return response.json();
         })
         .then(data => {
-            console.log('Received well data:', data); // 调试信息
-
             // 将数据转换为二维数组
             const wellDataArray = data.map(item => [
                 item.wellname,
@@ -55,23 +53,51 @@ document.getElementById('okBtn').addEventListener('click', () => {
                 item.h2s
             ]);
 
-            console.log('Converted well data array:', wellDataArray); // 调试信息
 
-            // === 第一个表：井信息 ===
-            console.log('Initializing wellInfo table'); // 调试信息
+
+            // === 第一个表：井信息（可编辑） ===
+
             wellInfo = new Handsontable(document.getElementById('wellInfo'), {
                 data: wellDataArray, // 使用转换后的二维数组
                 rowHeaders: true,
                 colHeaders: ['井号', '井底温度(k)', 'rg', 'Pc(MPa)', 'Tc(k)', 'N<sub>2</sub>(%)', 'CO<sub>2</sub>(%)', 'H<sub>2</sub>S(%)'],
+                columns: [
+                    { readOnly: true },     // 井号只读
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.00' } },    // 井底温度可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.000' } },   // rg可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.00' } },    // Pc可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.0' } },     // Tc可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.00' } },    // N₂可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.00' } },    // CO₂可编辑
+                    { readOnly: false, type: 'numeric', numericFormat: { pattern: '0.00' } }     // H₂S可编辑
+                ],
                 language: 'zh-CN',
                 licenseKey: 'non-commercial-and-evaluation',
                 height: 'auto',
                 width: 'auto',
-                theme: 'material'
+                theme: 'material',
+                // 添加编辑后的回调函数
+                afterChange: function (changes, source) {
+                    if (source === 'edit') {
+                        // 参数修改后的处理（可选）
+                        console.log('参数已修改:', changes);
+                    }
+                }
             });
 
+            // 可选：自动重新计算函数
+            function autoRecalculate() {
+                console.log('参数修改，自动重新计算...');
+                // 检查是否有压力数据
+                if (content && content.getData().some(row => row[0] !== null && row[0] !== '')) {
+                    // 延迟执行，避免频繁计算
+                    setTimeout(() => {
+                        document.getElementById('calculate').click();
+                    }, 500);
+                }
+            }
             // === 第二个表：计算区域 ===
-            console.log('Initializing content table'); // 调试信息
+
             const data2 = Array.from({ length: 7 }, () => Array(7).fill(null));
             content = new Handsontable(document.getElementById('content'), {
                 data: data2,                       // 注意这里用 data2
@@ -92,27 +118,54 @@ document.getElementById('okBtn').addEventListener('click', () => {
 
 // 计算按钮的事件监听器
 document.getElementById('calculate').addEventListener('click', () => {
-    console.log('Calculate button clicked'); // 调试信息
+
 
     if (!content || !wellInfo) {
-        alert('请先点击“确定”生成表格！');
+        console.error('请先点击"确定"生成表格！');
+        throw new Error('Tables not initialized');
+    }
+    if (wellInfo.getData().length === 0 || !wellInfo.getData()[0]) {
+        alert('井信息表为空，请先确定井号并加载数据。');
         return;
     }
+
+    // 获取当前井信息数据（包括用户编辑后的参数）
+    const currentWellData = wellInfo.getData()[0];
+
     // 获取 content 表中的第一列数据
     const pressuresRaw = content.getData().map(row => row[0]);
     const pressures = pressuresRaw
         .map(v => (v === null || v === undefined || v === '' ? null : parseFloat(v)))
-        .map(v => (Number.isNaN(v) ? null : v));
+        .map(v => (Number.isNaN(v) || !isFinite(v) ? null : v));
 
-    // 获取 wellInfo 表中的相关数据
-    const wellInfoData = wellInfo.getData()[0];
-    const pc = wellInfoData[3]; // Pc 的值
-    const tc = wellInfoData[4]; // Tc 的值
-    const t = wellInfoData[1];  // 井底温度
-    const rg = wellInfoData[2]; // rg 的值
-    const n2 = wellInfoData[5]; // N2 的值
-    const co2 = wellInfoData[6]; // CO2 的值
-    const h2s = wellInfoData[7]; // H2S 的值
+    // 获取 wellInfo 表中的相关数据（使用用户编辑后的数据）
+    const wellInfoData = currentWellData;
+
+    const pc = parseFloat(wellInfoData[3]); // Pc 的值
+    const tc = parseFloat(wellInfoData[4]); // Tc 的值
+    const t = parseFloat(wellInfoData[1]);  // 井底温度
+    const rg = parseFloat(wellInfoData[2]); // rg 的值
+    const n2 = parseFloat(wellInfoData[5]); // N2 的值
+    const co2 = parseFloat(wellInfoData[6]); // CO2 的值
+    const h2s = parseFloat(wellInfoData[7]); // H2S 的值
+
+    console.log('Parsed parameters:', { pc, tc, t, rg, n2, co2, h2s }); // 调试信息
+
+    // 验证参数是否为有效数字
+    if (isNaN(pc) || !isFinite(pc) || isNaN(tc) || !isFinite(tc) || isNaN(t) || !isFinite(t) || isNaN(rg) || !isFinite(rg) || isNaN(n2) || !isFinite(n2) || isNaN(co2) || !isFinite(co2) || isNaN(h2s) || !isFinite(h2s)) {
+        console.error('井信息参数必须是有效有限数字，请检查输入。');
+        throw new Error('Invalid parameters');
+    }
+
+    // 验证参数范围
+    if (pc <= 0 || tc <= 0 || t <= 0 || rg <= 0) {
+        console.error('Pc、Tc、井底温度、rg必须大于0。');
+        throw new Error('Parameters out of range');
+    }
+    if (n2 < 0 || n2 > 100 || co2 < 0 || co2 > 100 || h2s < 0 || h2s > 100) {
+        console.error('N2、CO2、H2S百分比必须在0-100之间。');
+        throw new Error('Percentages out of range');
+    }
 
     // 只对有效 pressure 做批量请求（保留索引以便恢复）
     const requests = pressures
@@ -120,9 +173,11 @@ document.getElementById('calculate').addEventListener('click', () => {
         .filter(x => x.p !== null);
 
     if (requests.length === 0) {
-        alert('没有有效的压力输入。');
-        return;
+        console.error('没有有效的压力输入。');
+        throw new Error('No valid pressures');
     }
+
+    console.log('Validation passed');
 
     const batchReq = {
         pressures: requests.map(x => x.p),
@@ -134,6 +189,8 @@ document.getElementById('calculate').addEventListener('click', () => {
         co2: co2,
         h2s: h2s
     };
+
+
 
     fetch('/api/calculateBatchPVT', {
         method: 'POST',
@@ -159,7 +216,6 @@ document.getElementById('calculate').addEventListener('click', () => {
             content.loadData(newData);
         })
         .catch(err => {
-            console.error('Batch PVT calculation error:', err);
             alert('批量计算出错，请检查输入或联系管理员。');
         });
 });

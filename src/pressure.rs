@@ -126,7 +126,10 @@ where
     let x = 3.5 + 986.0 / (9.0 * t / 5.0) + 0.01 * 28.97 * rg;
     let y = 2.4 - 0.2 * x;
 
-    let llluopr = density(rg, pc, tc, t, p); // 计算密度
+    let z = z(pc, tc, t, p);
+    let density = 3.4844 * p * rg / (z * t);
+
+    let llluopr = density; // 密度
     let niandu = k * (x * llluopr.powf(y)).exp(); //niandu----粘度
     niandu
 }
@@ -289,4 +292,63 @@ where
         pws = pts * (0.03415 * rg * h / (zz * t)).exp();
     }
     pws
+}
+
+/// 计算井口压力（反向计算）
+/// 已知井底压力，计算井口压力
+/// 参数:
+///   rg   – 气体相对密度（空气=1）
+///   pc   – 假临界压力，MPa
+///   tc   – 假临界温度，K
+///   h    – 气柱高度（井深），m
+///   tts  – 井口静温，℃
+///   tws  – 井底静温，℃
+///   pwbs – 井底静压，MPa
+/// 返回:
+///   井口静压，MPa
+pub fn ph<Rg, Pc, Tc, H, Tts, Tws, Pwbs>(
+    rg: Rg,
+    pc: Pc,
+    tc: Tc,
+    h: H,
+    tts: Tts,
+    tws: Tws,
+    pwbs: Pwbs,
+) -> f64
+where
+    Rg: Into<f64>,
+    Pc: Into<f64>,
+    Tc: Into<f64>,
+    H: Into<f64>,
+    Tts: Into<f64>,
+    Tws: Into<f64>,
+    Pwbs: Into<f64>,
+{
+    let rg: f64 = rg.into();
+    let pc: f64 = pc.into();
+    let tc: f64 = tc.into();
+    let h: f64 = h.into();
+    let tts: f64 = tts.into();
+    let tws: f64 = tws.into();
+    let pwbs: f64 = pwbs.into();
+
+    // 使用牛顿迭代法反向计算井口压力
+    let mut pts = pwbs / (1.0 + h / 12192.0); // 初始估值
+
+    for _ in 0..30 {
+        let p_avg = (pts + pwbs) * 0.5;
+        let t_avg = (tts + tws) * 0.5;
+        let zz = z(pc, tc, t_avg, p_avg);
+
+        // 根据井底压力公式反向推导
+        let pts_new = pwbs * (zz * t_avg / (0.03415 * rg * h + zz * t_avg)).exp();
+
+        if (pts_new - pts).abs() < 0.0001 {
+            pts = pts_new;
+            break;
+        }
+        pts = pts_new;
+    }
+
+    pts
 }

@@ -131,3 +131,28 @@ pub struct BatchPbResp {
     pub niandu: f64,
     pub cg: f64,
 }
+
+#[derive(Deserialize)]
+pub struct CalculateBatchPhReq {
+    pub pwbs: Vec<f64>, // 井底压力数组
+    pub well_no: String,
+    pub rg: f64,
+    pub pc: f64,
+    pub tc: f64,
+    pub h: f64,
+    pub tts: f64,
+    pub tws: f64,
+    pub n2: f64,
+    pub co2: f64,
+    pub h2s: f64,
+}
+
+#[derive(Serialize)]
+pub struct BatchPhResp {
+    pub ph: f64, // 井口压力
+    pub z: f64,
+    pub p_over_z: f64,
+    pub bg: f64,
+    pub niandu: f64,
+    pub cg: f64,
+}
