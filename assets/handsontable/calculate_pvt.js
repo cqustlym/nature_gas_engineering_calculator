@@ -212,6 +212,7 @@ document.getElementById('calculate').addEventListener('click', () => {
             content.loadData(newData);
         })
         .catch(err => {
-            alert('批量计算出错，请检查输入或联系管理员。');
+            console.error('PVT计算错误:', err);
+            alert('批量计算出错: ' + (err.message || err));
         });
 });

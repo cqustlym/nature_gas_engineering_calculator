@@ -102,19 +102,19 @@ document.getElementById('calculate').addEventListener('click', () => {
     }
 
     // 获取 content 表中的第一列数据（井口压力）
-    const pressuresRaw = content.getData().map(row => row[0]);
+    const pressuresRaw = content.getSourceData().map(row => row[0]);
 
     // 获取 wellInfo 表中的相关数据
-    const wellInfoData = wellInfo.getData()[0];
-    const pc = wellInfoData[5]; // Pc 的值
-    const tc = wellInfoData[6]; // Tc 的值
-    const t = wellInfoData[3];  // 井底温度
-    const rg = wellInfoData[4]; // rg 的值
-    const n2 = wellInfoData[7]; // N2 的值
-    const co2 = wellInfoData[8]; // CO2 的值
-    const h2s = wellInfoData[9]; // H2S 的值
-    const md = wellInfoData[1]; // 中部井深
-    const th = wellInfoData[2]; // 井口温度
+    const wellInfoData = wellInfo.getSourceData()[0];
+    const pc = parseFloat(wellInfoData[5]); // Pc (MPa)
+    const tc = parseFloat(wellInfoData[6]); // Tc (k)
+    const t = parseFloat(wellInfoData[3]); // 井底温度 (k)
+    const rg = parseFloat(wellInfoData[4]); // rg (m)
+    const n2 = parseFloat(wellInfoData[7]); // N2 (%)
+    const co2 = parseFloat(wellInfoData[8]); // CO2 (%)
+    const h2s = parseFloat(wellInfoData[9]); // H2S (%)
+    const md = parseFloat(wellInfoData[1]); // 中部井深 (m)
+    const th = parseFloat(wellInfoData[2]); // 井口温度 (k)
 
     const ptsArr = pressuresRaw
         .map(v => (v === null || v === undefined || v === '' ? null : parseFloat(v)))
