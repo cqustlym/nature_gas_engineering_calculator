@@ -1,34 +1,53 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <title>主页</title>
   <link rel="stylesheet" href="/assets/css/index_style.css">
 </head>
+
 <body>
-<header>
-  <nav class="nav">
-    <a href="#" class="brand">气藏工程计算</a>
-    <ul class="nav-list">
-      <li><a href="/index.html">首页</a></li>
+  <header>
+    <nav class="nav">
+      <a href="/" class="brand">气藏工程计算</a>
+      <ul class="nav-list">
+        <li><a href="/index.html">首页</a></li>
+        <li class="dropdown" tabindex="0">
+          <a href="#">压力计算</a>
+          <ul class="dropdown-menu">
+            <li><a href="/calculate_pvt.html">天然气PVT计算</a></li>
+            <li><a href="/calculate_pb.html">井底压力计算</a></li>
+            <li><a href="/calculate_ph.html">井口压力计算</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
 
-      <!-- 带下拉的一级条目 -->
-      <li class="dropdown" tabindex="0">
-        <a href="#">压力计算</a>
-        <ul class="dropdown-menu">
-          <li><a href="/calculate_pvt.html">天然气PVT计算</a></li>
-          <li><a href="/calculate_pb.html">井底压力计算</a></li>
-          <li><a href="/calculate_ph.html">井口压力计算</a></li>
-        </ul>
-      </li>
-<!--      <li><a href="#">关于</a></li>-->
-<!--      <li><a href="#">联系</a></li>-->
-    </ul>
-  </nav>
-</header>
-
-<main>
-
-</main>
+  <main>
+    <div class="welcome-card">
+      <h1>欢迎使用气藏工程计算系统</h1>
+      <p>专业的天然气PVT及压力计算平台</p>
+      <div class="quick-links">
+        <a href="/calculate_pvt.html" class="link-card">
+          <span class="icon">📊</span>
+          <span class="title">PVT计算</span>
+          <span class="desc">天然气物性参数计算</span>
+        </a>
+        <a href="/calculate_pb.html" class="link-card">
+          <span class="icon">⬇️</span>
+          <span class="title">井底压力</span>
+          <span class="desc">计算井底压力分布</span>
+        </a>
+        <a href="/calculate_ph.html" class="link-card">
+          <span class="icon">⬆️</span>
+          <span class="title">井口压力</span>
+          <span class="desc">计算井口压力分布</span>
+        </a>
+      </div>
+    </div>
+  </main>
 </body>
+
 </html>
