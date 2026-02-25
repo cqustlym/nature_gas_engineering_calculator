@@ -206,7 +206,7 @@ pub async fn calculate_batch_pb_handler(
     Ok(Json(result))
 }
 
-// ============ 井口压力计算 ============
+// ============ 批量井口压力计算 ============
 pub async fn calculate_batch_ph_handler(
     Json(req): Json<CalculateBatchPhReq>,
 ) -> Result<Json<Vec<BatchPhResp>>, StatusCode> {

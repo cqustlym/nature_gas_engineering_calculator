@@ -341,8 +341,7 @@ where
         let zz = z(pc, tc, t_avg, p_avg);
 
         // 根据井底压力公式反向推导
-        let pts_new = pwbs * (zz * t_avg / (0.03415 * rg * h + zz * t_avg)).exp();
-
+        let pts_new = pwbs / (0.03415 * rg * h / (zz * t_avg)).exp();
         if (pts_new - pts).abs() < 0.0001 {
             pts = pts_new;
             break;
