@@ -41,7 +41,8 @@ function initWellInfoTable(wellDataArray, customHeaders = null) {
         stretchH: 'all',
         renderAllRows: false,
         autoRowSize: false,
-        autoColSize: false
+        autoColSize: false,
+        className: 'htCenter' // 所有单元格居中
     });
 }
 
@@ -58,13 +59,14 @@ function initContentTable(colHeaders, rowCount = 20) {
         language: 'zh-CN',
         licenseKey: 'non-commercial-and-evaluation',
         height: 500,
-        width: 'auto', // 设置宽度为90%
+        width: 'auto',
         theme: 'material',
-        fixedRowsTop: 1,
+        fixedRowsTop: 0, //固定多少行数据
         stretchH: 'all',
         renderAllRows: false,
         autoRowSize: false,
-        autoColSize: false
+        autoColSize: false,
+        className: 'htCenter' // 所有单元格居中
     });
 }
 

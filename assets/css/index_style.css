@@ -59,7 +59,7 @@ body {
 .dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 
 /* 主内容 */
-main { max-width: 1000px; margin: 60px auto; padding: 0 24px; }
+main { max-width: 1000px; margin: 60px auto; padding: 24px 24px; }
 
 /* 欢迎卡片 */
 .welcome-card {
