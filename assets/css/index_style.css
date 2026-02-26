@@ -9,10 +9,21 @@ body {
 
 /* 导航栏 */
 .nav {
-    display: flex; align-items: center; justify-content: center; gap: 48px;
-    height: 60px; background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 0 24px; box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0 24px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
 }
 
 .brand {

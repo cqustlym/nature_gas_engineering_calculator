@@ -24,6 +24,11 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 0 24px;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+  position: fixed; /* 固定在顶部 */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; /* 确保在最上层 */
 }
 
 .brand {
@@ -117,7 +122,7 @@ body {
 /* ===== 主内容 ===== */
 main {
   max-width: 1100px;
-  margin: 40px auto;
+  margin: 100px auto 40px; /* 增加上边距避免被遮挡 */
   padding: 0 24px;
 }
 
@@ -224,9 +229,14 @@ main {
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 2px solid #f0f0f0;
+  text-align: center;
 }
 
 .handsontable-container {
-  border-radius: 8px;
-  overflow: hidden;
+  width: 90%;
+  max-width: 800px;
+  margin: 0 auto;
+  max-height: 60vh;
+  overflow: auto;
+  /* border-radius: 8px; */
 }
