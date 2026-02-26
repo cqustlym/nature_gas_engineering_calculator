@@ -11,9 +11,16 @@ const WELLINFO_HEADERS = ['井号', '中部井深(m)', '井口温度(k)', '井�
 const HOT_CONFIG = {
     language: 'zh-CN',
     licenseKey: 'non-commercial-and-evaluation',
-    height: 'auto',
+    height: 100, // 设置表格高度，启用滚动
     width: 'auto',
-    theme: 'material'
+    theme: 'material',
+    // 固定表头
+    fixedRowsTop: 0, // 固定顶部1行（表头）
+    stretchH: 'all', // 列宽自适应
+    // 性能优化
+    renderAllRows: false,
+    autoRowSize: false,
+    autoColSize: false
 };
 
 // 初始化井信息表格
@@ -25,12 +32,21 @@ function initWellInfoTable(wellDataArray, customHeaders = null) {
         data: wellDataArray,
         rowHeaders: true,
         colHeaders: customHeaders || WELLINFO_HEADERS,
-        ...HOT_CONFIG
+        language: 'zh-CN',
+        licenseKey: 'non-commercial-and-evaluation',
+        height: 'auto',
+        width: 'auto',
+        theme: 'material',
+        fixedRowsTop: 0,
+        stretchH: 'all',
+        renderAllRows: false,
+        autoRowSize: false,
+        autoColSize: false
     });
 }
 
 // 初始化计算结果表格
-function initContentTable(colHeaders, rowCount = 7) {
+function initContentTable(colHeaders, rowCount = 20) {
     const container = document.getElementById('content');
     if (!container) return null;
 
@@ -39,7 +55,16 @@ function initContentTable(colHeaders, rowCount = 7) {
         data: data,
         rowHeaders: true,
         colHeaders: colHeaders,
-        ...HOT_CONFIG
+        language: 'zh-CN',
+        licenseKey: 'non-commercial-and-evaluation',
+        height: 500,
+        width: 'auto', // 设置宽度为90%
+        theme: 'material',
+        fixedRowsTop: 1,
+        stretchH: 'all',
+        renderAllRows: false,
+        autoRowSize: false,
+        autoColSize: false
     });
 }
 
